@@ -207,6 +207,13 @@ namespace osu.Game.Screens.Play
             if (!LoadedBeatmapSuccessfully)
                 return;
 
+            // Practice retry: start much closer to the first remaining object.
+            if (RestartCount > 0)
+            {
+                double firstObjectTime = DrawableRuleset.Objects.First().StartTime;
+                SetGameplayStartTime(Math.Max(0, firstObjectTime - 500));
+            }
+
             PrepareReplay();
 
             ScoreProcessor.NewJudgement += _ => ScoreProcessor.PopulateScore(Score.ScoreInfo);
@@ -597,17 +604,45 @@ namespace osu.Game.Screens.Play
 
                 try
                 {
-                    playable = Beatmap.Value.GetPlayableBeatmap(ruleset.RulesetInfo, gameplayMods, cancellationToken);
+                    playable = Beatmap.Value.GetPlayableBeatmap(
+                        ruleset.RulesetInfo,
+                        gameplayMods,
+                        cancellationToken
+                    );
                 }
                 catch (BeatmapInvalidForRulesetException)
                 {
-                    Logger.Log($"The current beatmap is not playable in {ruleset.RulesetInfo.Name}!", level: LogLevel.Important);
+                    Logger.Log(
+                        $"The current beatmap is not playable in {ruleset.RulesetInfo.Name}!",
+                        level: LogLevel.Important
+                    );
+
                     return null;
+                }
+
+                // TEMP PRACTICE TEST:
+                // On retries, remove every object before 30 seconds.
+                if (RestartCount > 0 &&
+                    playable.HitObjects is System.Collections.IList hitObjects)
+                {
+                    for (int i = playable.HitObjects.Count - 1; i >= 0; i--)
+                    {
+                        if (playable.HitObjects[i].StartTime < 30000)
+                            hitObjects.RemoveAt(i);
+                    }
+
+                    Logger.Log(
+                        $"PRACTICE: {playable.HitObjects.Count} objects remain after 30s checkpoint"
+                    );
                 }
 
                 if (playable.HitObjects.Count == 0)
                 {
-                    Logger.Log("Beatmap contains no hit objects!", level: LogLevel.Important);
+                    Logger.Log(
+                        "Beatmap contains no hit objects!",
+                        level: LogLevel.Important
+                    );
+
                     return null;
                 }
             }
@@ -619,7 +654,8 @@ namespace osu.Game.Screens.Play
             catch (Exception e)
             {
                 Logger.Error(e, "Could not load beatmap successfully!");
-                //couldn't load, hard abort!
+
+                // couldn't load, hard abort!
                 return null;
             }
 

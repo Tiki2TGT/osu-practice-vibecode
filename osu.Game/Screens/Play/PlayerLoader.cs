@@ -19,6 +19,7 @@ using osu.Framework.Platform;
 using osu.Framework.Screens;
 using osu.Framework.Threading;
 using osu.Framework.Utils;
+using osu.Framework.Logging;
 using osu.Game.Audio;
 using osu.Game.Audio.Effects;
 using osu.Game.Beatmaps;
@@ -551,6 +552,10 @@ namespace osu.Game.Screens.Play
             if (!this.IsCurrentScreen())
                 return;
 
+            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+
+            Logger.Log("INSTANT-RETRY: Starting Player creation");
+
             CurrentPlayer = createPlayer();
             CurrentPlayer.Configuration.AutomaticallySkipIntro |= QuickRestart;
             CurrentPlayer.RestartCount = restartCount++;
@@ -558,11 +563,14 @@ namespace osu.Game.Screens.Play
 
             LoadTask = LoadComponentAsync(CurrentPlayer, _ =>
             {
+                stopwatch.Stop();
+
+                Logger.Log($"INSTANT-RETRY: Player finished loading in {stopwatch.Elapsed.TotalMilliseconds:F1} ms");
+
                 MetadataInfo.Loading = false;
                 OnPlayerLoaded();
             });
         }
-
         protected virtual void OnPlayerLoaded()
         {
         }
