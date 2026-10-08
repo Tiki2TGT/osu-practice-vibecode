@@ -218,6 +218,7 @@ namespace osu.Game.Rulesets.Osu
                         new OsuModRelax(),
                         new OsuModAutopilot(),
                         new OsuModSpunOut(),
+                        new OsuModTimeControl(),
                     };
 
                 case ModType.Fun:

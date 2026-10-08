@@ -275,11 +275,13 @@ namespace osu.Game.Screens.Play
         /// <param name="token">The submission token.</param>
         protected abstract APIRequest<MultiplayerScore> CreateSubmissionRequest(Score score, long token);
 
+        private readonly bool disableOnlineScoreSubmission = true;
+
         private Task submitScore(Score score)
         {
-            if (PracticeModeActive)
+            if (disableOnlineScoreSubmission)
             {
-                Logger.Log("PRACTICE: Skipping online score submission because practice mode was used for this play.");
+                Logger.Log("PRACTICE CLIENT: Skipping online score submission.");
                 return Task.CompletedTask;
             }
             var masterClock = GameplayClockContainer as MasterGameplayClockContainer;

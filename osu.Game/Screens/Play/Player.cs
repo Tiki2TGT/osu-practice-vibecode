@@ -37,6 +37,7 @@ using osu.Game.Scoring;
 using osu.Game.Scoring.Legacy;
 using osu.Game.Screens.Ranking;
 using osu.Game.Screens.Play.HUD;
+using osu.Game.Screens.Play.PlayerSettings;
 using osu.Game.Skinning;
 using osu.Game.Users;
 using osu.Game.Utils;
@@ -194,6 +195,8 @@ namespace osu.Game.Screens.Play
         protected DrawableRuleset DrawableRuleset { get; private set; }
 
         protected HUDOverlay HUDOverlay { get; private set; }
+        private ReplayOverlay timeControlOverlay;
+        private TimeControlSettings timeControlSettings;
 
         public bool LoadedBeatmapSuccessfully => DrawableRuleset?.Objects.Any() == true;
 
@@ -896,6 +899,36 @@ namespace osu.Game.Screens.Play
             updateSampleDisabledState();
         }
 
+        public void EnableTimeControl()
+        {
+            if (timeControlOverlay != null)
+                return;
+
+            GameplayClockContainer.Add(
+                timeControlOverlay = new ReplayOverlay()
+            );
+
+            timeControlSettings = new TimeControlSettings
+            {
+                Depth = float.MaxValue,
+                Expanded =
+                {
+                    Value = true
+                }
+            };
+
+            if (GameplayClockContainer is MasterGameplayClockContainer master)
+            {
+                timeControlSettings.UserPlaybackRate.BindTo(
+                    master.UserPlaybackRate
+                );
+            }
+
+            timeControlOverlay.Settings.AddAtStart(
+                timeControlSettings
+            );
+        }
+
         /// <summary>
         /// Seek to a specific time in gameplay.
         /// </summary>
@@ -1122,7 +1155,7 @@ namespace osu.Game.Screens.Play
         private bool onFail()
         {
             // Failing after the quit sequence has started may cause weird side effects with the fail animation / effects.
-            if (GameplayState.HasQuit)
+            if (GameplayState.HasQuit || GameplayState.HasFailed)
                 return false;
 
             if (!CheckModsAllowFailure())
