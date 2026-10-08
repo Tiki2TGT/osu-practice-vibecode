@@ -12,22 +12,48 @@ namespace osu.Game.Screens.Play
     {
         public Action? SetPracticeCheckpoint { get; init; }
 
+        public Action? ReplacePracticeCheckpoint { get; init; }
+
+        public Action? DeletePracticeCheckpoint { get; init; }
+
+        public Action? PreviousPracticeCheckpoint { get; init; }
+
+        public Action? NextPracticeCheckpoint { get; init; }
+
         public bool OnPressed(KeyBindingPressEvent<GlobalAction> e)
         {
             if (e.Repeat)
                 return false;
 
-            if (e.Action == GlobalAction.SetPracticeCheckpoint)
+            switch (e.Action)
             {
-                SetPracticeCheckpoint?.Invoke();
-                return true;
+                case GlobalAction.SetPracticeCheckpoint:
+                    SetPracticeCheckpoint?.Invoke();
+                    return true;
+
+                case GlobalAction.ReplacePracticeCheckpoint:
+                    ReplacePracticeCheckpoint?.Invoke();
+                    return true;
+
+                case GlobalAction.DeletePracticeCheckpoint:
+                    DeletePracticeCheckpoint?.Invoke();
+                    return true;
+
+                case GlobalAction.PreviousPracticeCheckpoint:
+                    PreviousPracticeCheckpoint?.Invoke();
+                    return true;
+
+                case GlobalAction.NextPracticeCheckpoint:
+                    NextPracticeCheckpoint?.Invoke();
+                    return true;
+
+                case GlobalAction.QuickRetry:
+                    BeginConfirm();
+                    return true;
+
+                default:
+                    return false;
             }
-
-            if (e.Action != GlobalAction.QuickRetry)
-                return false;
-
-            BeginConfirm();
-            return true;
         }
 
         public void OnReleased(KeyBindingReleaseEvent<GlobalAction> e)

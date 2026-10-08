@@ -504,6 +504,29 @@ namespace osu.Game.Localisation
         /// </summary>
         public static LocalisableString EditorDiscardUnsavedChanges => new TranslatableString(getKey(@"editor_discard_unsaved_changes"), @"Discard unsaved changes...");
 
+        /// <summary>
+        /// "Replace practice checkpoint"
+        /// </summary>
+        public static LocalisableString ReplacePracticeCheckpoint =>
+            new TranslatableString(getKey(@"replace_practice_checkpoint"), @"Replace practice checkpoint");
+
+        /// <summary>
+        /// "Delete practice checkpoint"
+        /// </summary>
+        public static LocalisableString DeletePracticeCheckpoint =>
+            new TranslatableString(getKey(@"delete_practice_checkpoint"), @"Delete practice checkpoint");
+
+        /// <summary>
+        /// "Previous practice checkpoint"
+        /// </summary>
+        public static LocalisableString PreviousPracticeCheckpoint =>
+            new TranslatableString(getKey(@"previous_practice_checkpoint"), @"Previous practice checkpoint");
+
+        /// <summary>
+        /// "Next practice checkpoint"
+        /// </summary>
+        public static LocalisableString NextPracticeCheckpoint =>
+            new TranslatableString(getKey(@"next_practice_checkpoint"), @"Next practice checkpoint");
         private static string getKey(string key) => $@"{prefix}:{key}";
     }
 }

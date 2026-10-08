@@ -4,6 +4,11 @@
 using System;
 using System.Diagnostics;
 using System.Threading.Tasks;
+
+using System.Collections.Generic;
+using System.IO;
+using System.Text.Json;
+
 using ManagedBass.Fx;
 using osu.Framework.Allocation;
 using osu.Framework.Audio;
@@ -200,8 +205,11 @@ namespace osu.Game.Screens.Play
         }
 
         [BackgroundDependencyLoader]
-        private void load(SessionStatics sessionStatics, OsuConfigManager config, IAPIProvider api)
+        private void load(SessionStatics sessionStatics, OsuConfigManager config, IAPIProvider api, Storage storage)
         {
+            practiceStorage = storage.GetStorageForDirectory("practice-checkpoints");
+            loadPracticeCheckpoint();
+
             muteWarningShownOnce = sessionStatics.GetBindable<bool>(Static.MutedAudioNotificationShownOnce);
             batteryWarningShownOnce = sessionStatics.GetBindable<bool>(Static.LowBatteryNotificationShownOnce);
             showStoryboards = config.GetBindable<bool>(OsuSetting.ShowStoryboard);
@@ -546,7 +554,245 @@ namespace osu.Game.Screens.Play
             playerConsumed = true;
             return CurrentPlayer;
         }
+        private string? getPracticeCheckpointFilename()
+        {
+            string? hash = Beatmap.Value.BeatmapInfo.Hash;
 
+            if (string.IsNullOrEmpty(hash))
+                return null;
+
+            return $"{hash}.json";
+        }
+
+        private void loadPracticeCheckpoint()
+        {
+            string? filename = getPracticeCheckpointFilename();
+
+            if (filename == null || !practiceStorage.Exists(filename))
+                return;
+
+            try
+            {
+                using Stream stream = practiceStorage.GetStream(
+                    filename,
+                    FileAccess.Read,
+                    FileMode.Open
+                );
+
+                practiceCheckpointState =
+                    JsonSerializer.Deserialize<PracticeCheckpointState>(stream)
+                    ?? new PracticeCheckpointState();
+
+                if (practiceCheckpointState.Checkpoints.Count == 0)
+                {
+                    practiceCheckpointState.ActiveIndex = -1;
+                    practiceCheckpointTime = null;
+                    return;
+                }
+
+                practiceCheckpointState.ActiveIndex = Math.Clamp(
+                    practiceCheckpointState.ActiveIndex,
+                    -1,
+                    practiceCheckpointState.Checkpoints.Count - 1
+                );
+
+                if (practiceCheckpointState.ActiveIndex == -1)
+                {
+                    practiceCheckpointTime = null;
+
+                    Logger.Log("PRACTICE: Loaded start-of-map position");
+                }
+                else
+                {
+                    practiceCheckpointTime =
+                        practiceCheckpointState.Checkpoints[practiceCheckpointState.ActiveIndex];
+
+                    Logger.Log(
+                        $"PRACTICE: Loaded checkpoint {practiceCheckpointTime:F0} ms"
+                    );
+                }
+            }
+            catch (Exception e)
+            {
+                Logger.Error(e, "PRACTICE: Failed to load checkpoint");
+
+                practiceCheckpointState = new PracticeCheckpointState();
+                practiceCheckpointTime = null;
+            }
+        }
+
+        private int getPracticeCheckpointInsertIndex(double time)
+        {
+            int index = practiceCheckpointState.Checkpoints.FindIndex(checkpoint => checkpoint > time);
+
+            return index < 0
+                ? practiceCheckpointState.Checkpoints.Count
+                : index;
+        }
+
+        private void savePracticeCheckpointState()
+        {
+            string? filename = getPracticeCheckpointFilename();
+
+            if (filename == null)
+                return;
+
+            try
+            {
+                using Stream stream = practiceStorage.CreateFileSafely(filename);
+
+                JsonSerializer.Serialize(
+                    stream,
+                    practiceCheckpointState,
+                    practiceJsonOptions
+                );
+            }
+            catch (Exception e)
+            {
+                Logger.Error(e, "PRACTICE: Failed to save checkpoints");
+            }
+        }
+
+        private double? addPracticeCheckpoint(double time)
+        {
+            int index = getPracticeCheckpointInsertIndex(time);
+
+            practiceCheckpointState.Checkpoints.Insert(index, time);
+            practiceCheckpointState.ActiveIndex = index;
+
+            practiceCheckpointTime = time;
+
+            savePracticeCheckpointState();
+
+            Logger.Log(
+                $"PRACTICE: Added checkpoint {index + 1}/{practiceCheckpointState.Checkpoints.Count} at {time:F0} ms"
+            );
+
+            return practiceCheckpointTime;
+        }
+
+        private double? replacePracticeCheckpoint(double time)
+        {
+            if (practiceCheckpointState.Checkpoints.Count == 0 ||
+                practiceCheckpointState.ActiveIndex < 0 ||
+                practiceCheckpointState.ActiveIndex >= practiceCheckpointState.Checkpoints.Count)
+            {
+                Logger.Log("PRACTICE: Cannot replace checkpoint because no checkpoint is active.");
+                return practiceCheckpointTime;
+            }
+
+            int oldIndex = practiceCheckpointState.ActiveIndex;
+            double oldTime = practiceCheckpointState.Checkpoints[oldIndex];
+
+            practiceCheckpointState.Checkpoints.RemoveAt(oldIndex);
+
+            int newIndex = getPracticeCheckpointInsertIndex(time);
+
+            practiceCheckpointState.Checkpoints.Insert(newIndex, time);
+            practiceCheckpointState.ActiveIndex = newIndex;
+
+            practiceCheckpointTime = time;
+
+            savePracticeCheckpointState();
+
+            Logger.Log(
+                $"PRACTICE: Replaced checkpoint at {oldTime:F0} ms with {time:F0} ms; now checkpoint {newIndex + 1}/{practiceCheckpointState.Checkpoints.Count}"
+            );
+
+            return practiceCheckpointTime;
+        }
+
+        private double? deletePracticeCheckpoint()
+        {
+            if (practiceCheckpointState.Checkpoints.Count == 0 ||
+                practiceCheckpointState.ActiveIndex < 0 ||
+                practiceCheckpointState.ActiveIndex >= practiceCheckpointState.Checkpoints.Count)
+            {
+                Logger.Log("PRACTICE: Cannot delete checkpoint because no checkpoint is active.");
+                return practiceCheckpointTime;
+            }
+
+            int deletedIndex = practiceCheckpointState.ActiveIndex;
+            double deletedTime = practiceCheckpointState.Checkpoints[deletedIndex];
+
+            practiceCheckpointState.Checkpoints.RemoveAt(deletedIndex);
+
+            if (practiceCheckpointState.Checkpoints.Count == 0)
+            {
+                practiceCheckpointState.ActiveIndex = -1;
+                practiceCheckpointTime = null;
+            }
+            else
+            {
+                // Prefer the previous checkpoint.
+                // If the deleted checkpoint was the first, use what is now the first.
+                practiceCheckpointState.ActiveIndex =
+                    deletedIndex > 0 ? deletedIndex - 1 : 0;
+
+                practiceCheckpointTime =
+                    practiceCheckpointState.Checkpoints[practiceCheckpointState.ActiveIndex];
+            }
+
+            savePracticeCheckpointState();
+
+            Logger.Log(
+                $"PRACTICE: Deleted checkpoint at {deletedTime:F0} ms; active checkpoint is now {(practiceCheckpointTime.HasValue ? $"{practiceCheckpointTime:F0} ms" : "none")}"
+            );
+
+            return practiceCheckpointTime;
+        }
+
+        private double? previousPracticeCheckpoint()
+        {
+            if (practiceCheckpointState.Checkpoints.Count == 0)
+                return null;
+
+            if (practiceCheckpointState.ActiveIndex >= 0)
+            {
+                practiceCheckpointState.ActiveIndex--;
+
+                if (practiceCheckpointState.ActiveIndex == -1)
+                {
+                    practiceCheckpointTime = null;
+
+                    Logger.Log("PRACTICE: Active position is now start of map");
+                }
+                else
+                {
+                    practiceCheckpointTime =
+                        practiceCheckpointState.Checkpoints[practiceCheckpointState.ActiveIndex];
+
+                    Logger.Log(
+                        $"PRACTICE: Active checkpoint {practiceCheckpointState.ActiveIndex + 1}/{practiceCheckpointState.Checkpoints.Count} at {practiceCheckpointTime:F0} ms"
+                    );
+                }
+
+                savePracticeCheckpointState();
+            }
+
+            return practiceCheckpointTime;
+        }
+
+        private double? nextPracticeCheckpoint()
+        {
+            if (practiceCheckpointState.Checkpoints.Count == 0)
+                return null;
+
+            if (practiceCheckpointState.ActiveIndex < practiceCheckpointState.Checkpoints.Count - 1)
+            {
+                practiceCheckpointState.ActiveIndex++;
+                practiceCheckpointTime =
+                    practiceCheckpointState.Checkpoints[practiceCheckpointState.ActiveIndex];
+
+                savePracticeCheckpointState();
+            }
+
+            Logger.Log(
+                $"PRACTICE: Active checkpoint {practiceCheckpointState.ActiveIndex + 1}/{practiceCheckpointState.Checkpoints.Count} at {practiceCheckpointTime:F0} ms"
+            );
+
+            return practiceCheckpointTime;
+        }
         private void prepareNewPlayer()
         {
             if (!this.IsCurrentScreen())
@@ -561,12 +807,13 @@ namespace osu.Game.Screens.Play
             CurrentPlayer.RestartCount = restartCount++;
 
             CurrentPlayer.PracticeCheckpointTime = practiceCheckpointTime;
+            CurrentPlayer.PracticeModeActive = practiceCheckpointTime.HasValue;
 
-            CurrentPlayer.PracticeCheckpointChanged = time =>
-            {
-                practiceCheckpointTime = time;
-                Logger.Log($"PRACTICE: Loader saved checkpoint at {time:F0} ms");
-            };
+            CurrentPlayer.AddPracticeCheckpointRequest = addPracticeCheckpoint;
+            CurrentPlayer.ReplacePracticeCheckpointRequest = replacePracticeCheckpoint;
+            CurrentPlayer.DeletePracticeCheckpointRequest = deletePracticeCheckpoint;
+            CurrentPlayer.PreviousPracticeCheckpointRequest = previousPracticeCheckpoint;
+            CurrentPlayer.NextPracticeCheckpointRequest = nextPracticeCheckpoint;
 
             CurrentPlayer.PrepareLoaderForRestart = prepareForRestart;
 
@@ -596,6 +843,12 @@ namespace osu.Game.Screens.Play
             refetchLeaderboard(force: !quickRestartRequested);
         }
 
+        private sealed class PracticeCheckpointState
+        {
+            public List<double> Checkpoints { get; set; } = new();
+
+            public int ActiveIndex { get; set; } = -1;
+        }
         private void contentIn(double delayBeforeSideDisplays = 0)
         {
             MetadataInfo.Loading = true;
@@ -789,6 +1042,14 @@ namespace osu.Game.Screens.Play
 
         private int restartCount;
         private double? practiceCheckpointTime;
+
+        private Storage practiceStorage = null!;
+        private PracticeCheckpointState practiceCheckpointState = new();
+
+        private static readonly JsonSerializerOptions practiceJsonOptions = new()
+        {
+            WriteIndented = true
+        };
         private const double volume_requirement = 0.01;
 
         private void showMuteWarningIfNeeded()

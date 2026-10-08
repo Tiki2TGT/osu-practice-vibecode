@@ -30,6 +30,12 @@ namespace osu.Game.Overlays.Settings.Sections.Gameplay
                     Keywords = new[] { "scoring" },
                     ApplyClassicDefault = c => ((IHasCurrentValue<ScoringMode>)c).Current.Value = ScoringMode.Classic,
                 },
+                new SettingsItemV2(new FormSliderBar<double>
+                {
+                    Caption = GameplaySettingsStrings.PracticePreroll,
+                    Current = config.GetBindable<double>(OsuSetting.PracticePreroll),
+                    KeyboardStep = 50,
+                }),
                 new SettingsItemV2(new FormCheckBox
                 {
                     Caption = GraphicsSettingsStrings.HitLighting,

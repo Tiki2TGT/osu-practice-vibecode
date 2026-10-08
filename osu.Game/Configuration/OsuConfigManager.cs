@@ -145,6 +145,9 @@ namespace osu.Game.Configuration
             SetDefault(OsuSetting.PositionalHitsoundsLevel, 0.2f, 0, 1, 0.01f);
             SetDefault(OsuSetting.DimLevel, 0.7, 0, 1, 0.01);
             SetDefault(OsuSetting.BlurLevel, 0, 0, 1, 0.01);
+
+            SetDefault(OsuSetting.PracticePreroll, 500.0, 0.0, 3000.0, 50.0);
+
             SetDefault(OsuSetting.LightenDuringBreaks, true);
 
             SetDefault(OsuSetting.HitLighting, true);
@@ -485,5 +488,8 @@ namespace osu.Game.Configuration
         /// Blocks private messages, multiplayer room invites, and duel requests from people not on the user's friends list.
         /// </summary>
         PMFriendsOnly,
+
+        //the practice preroll delay
+        PracticePreroll,
     }
 }

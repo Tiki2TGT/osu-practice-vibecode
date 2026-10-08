@@ -92,6 +92,8 @@ namespace osu.Game.Screens.Play
 
         private readonly Bindable<bool> samplePlaybackDisabled = new Bindable<bool>();
 
+        private readonly Bindable<double> practicePreroll = new Bindable<double>();
+
         /// <summary>
         /// Whether gameplay should pause when the game window focus is lost.
         /// </summary>
@@ -99,7 +101,17 @@ namespace osu.Game.Screens.Play
 
         public Action<bool> PrepareLoaderForRestart;
         public double? PracticeCheckpointTime;
-        public Action<double> PracticeCheckpointChanged;
+
+        // Sticky for the lifetime of this Player.
+        // Prevents a filtered practice run from becoming submittable if the
+        // final checkpoint is deleted during gameplay.
+        public bool PracticeModeActive;
+
+        public Func<double, double?> AddPracticeCheckpointRequest;
+        public Func<double, double?> ReplacePracticeCheckpointRequest;
+        public Func<double?> DeletePracticeCheckpointRequest;
+        public Func<double?> PreviousPracticeCheckpointRequest;
+        public Func<double?> NextPracticeCheckpointRequest;
         private bool isRestarting;
         private bool skipExitTransition;
 
@@ -212,7 +224,7 @@ namespace osu.Game.Screens.Play
             if (PracticeCheckpointTime.HasValue)
             {
                 double firstObjectTime = DrawableRuleset.Objects.First().StartTime;
-                SetGameplayStartTime(Math.Max(0, firstObjectTime - 500));
+                SetGameplayStartTime(Math.Max(0, firstObjectTime - practicePreroll.Value));
             }
 
             PrepareReplay();
@@ -234,6 +246,8 @@ namespace osu.Game.Screens.Play
         [BackgroundDependencyLoader(true)]
         private void load(OsuConfigManager config, OsuGameBase game, CancellationToken cancellationToken)
         {
+            //practice preroll
+            config.BindWith(OsuSetting.PracticePreroll, practicePreroll);
             var gameplayMods = Mods.Value.Select(m => m.DeepClone()).ToArray();
 
             if (gameplayMods.Any(m => m is UnknownMod))
@@ -361,10 +375,50 @@ namespace osu.Game.Screens.Play
 
                         double time = Math.Max(0, GameplayClockContainer.CurrentTime);
 
-                        PracticeCheckpointTime = time;
-                        PracticeCheckpointChanged?.Invoke(time);
+                        if (AddPracticeCheckpointRequest != null)
+                            PracticeCheckpointTime = AddPracticeCheckpointRequest(time);
 
-                        Logger.Log($"PRACTICE: Checkpoint set to {time:F0} ms");
+                        PracticeModeActive = true;
+                    },
+
+                    ReplacePracticeCheckpoint = () =>
+                    {
+                        if (!this.IsCurrentScreen())
+                            return;
+
+                        double time = Math.Max(0, GameplayClockContainer.CurrentTime);
+
+                        if (ReplacePracticeCheckpointRequest != null)
+                            PracticeCheckpointTime = ReplacePracticeCheckpointRequest(time);
+                    },
+
+                    DeletePracticeCheckpoint = () =>
+                    {
+                        if (!this.IsCurrentScreen())
+                            return;
+
+                        if (DeletePracticeCheckpointRequest != null)
+                            PracticeCheckpointTime = DeletePracticeCheckpointRequest();
+
+                        // Intentionally keep PracticeModeActive sticky.
+                    },
+
+                    PreviousPracticeCheckpoint = () =>
+                    {
+                        if (!this.IsCurrentScreen())
+                            return;
+
+                        if (PreviousPracticeCheckpointRequest != null)
+                            PracticeCheckpointTime = PreviousPracticeCheckpointRequest();
+                    },
+
+                    NextPracticeCheckpoint = () =>
+                    {
+                        if (!this.IsCurrentScreen())
+                            return;
+
+                        if (NextPracticeCheckpointRequest != null)
+                            PracticeCheckpointTime = NextPracticeCheckpointRequest();
                     },
 
                     Action = () =>

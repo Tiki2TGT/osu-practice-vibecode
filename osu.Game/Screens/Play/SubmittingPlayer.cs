@@ -277,6 +277,11 @@ namespace osu.Game.Screens.Play
 
         private Task submitScore(Score score)
         {
+            if (PracticeModeActive)
+            {
+                Logger.Log("PRACTICE: Skipping online score submission because practice mode was used for this play.");
+                return Task.CompletedTask;
+            }
             var masterClock = GameplayClockContainer as MasterGameplayClockContainer;
 
             if (masterClock?.PlaybackRateValid.Value != true)

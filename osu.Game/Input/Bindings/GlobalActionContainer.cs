@@ -211,8 +211,16 @@ namespace osu.Game.Input.Bindings
             new KeyBinding(InputKey.Control, GlobalAction.HoldForHUD),
             new KeyBinding(InputKey.Enter, GlobalAction.ToggleChatFocus),
             new KeyBinding(InputKey.F1, GlobalAction.SaveReplay),
-            new KeyBinding(InputKey.F2, GlobalAction.SetPracticeCheckpoint),
+
+            // Practice checkpoints.
+            // Modified F2 bindings go before plain F2 for precedence.
+            new KeyBinding(new[] { InputKey.Control, InputKey.F2 }, GlobalAction.ReplacePracticeCheckpoint),
+            new KeyBinding(new[] { InputKey.Alt, InputKey.F2 }, GlobalAction.DeletePracticeCheckpoint),
             new KeyBinding(new[] { InputKey.Shift, InputKey.F2 }, GlobalAction.ExportReplay),
+            new KeyBinding(InputKey.F2, GlobalAction.SetPracticeCheckpoint),
+
+            new KeyBinding(new[] { InputKey.Shift, InputKey.Left }, GlobalAction.PreviousPracticeCheckpoint),
+            new KeyBinding(new[] { InputKey.Shift, InputKey.Right }, GlobalAction.NextPracticeCheckpoint),
             new KeyBinding(InputKey.Plus, GlobalAction.IncreaseOffset),
             new KeyBinding(InputKey.Minus, GlobalAction.DecreaseOffset),
         };
@@ -639,6 +647,18 @@ namespace osu.Game.Input.Bindings
 
         [LocalisableDescription(typeof(GlobalActionKeyBindingStrings), nameof(GlobalActionKeyBindingStrings.SetPracticeCheckpoint))]
         SetPracticeCheckpoint,
+
+        [LocalisableDescription(typeof(GlobalActionKeyBindingStrings), nameof(GlobalActionKeyBindingStrings.ReplacePracticeCheckpoint))]
+        ReplacePracticeCheckpoint,
+
+        [LocalisableDescription(typeof(GlobalActionKeyBindingStrings), nameof(GlobalActionKeyBindingStrings.DeletePracticeCheckpoint))]
+        DeletePracticeCheckpoint,
+
+        [LocalisableDescription(typeof(GlobalActionKeyBindingStrings), nameof(GlobalActionKeyBindingStrings.PreviousPracticeCheckpoint))]
+        PreviousPracticeCheckpoint,
+
+        [LocalisableDescription(typeof(GlobalActionKeyBindingStrings), nameof(GlobalActionKeyBindingStrings.NextPracticeCheckpoint))]
+        NextPracticeCheckpoint,
     }
 
     public enum GlobalActionCategory
