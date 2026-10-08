@@ -1,3 +1,28 @@
+> [!WARNING]
+> ## !VIBECODE WARNING!
+>
+> This is an experimental practice fork of osu!lazer made primarily for personal use and rapidly developed with AI assistance.
+>
+> Expect bugs, crashes, questionable design decisions, unfinished features, and other assorted bullshit.
+>
+## osu! Practice Fork
+
+An experimental osu!lazer fork focused on making targeted practice less painful.
+
+Current features include:
+
+- Persistent practice checkpoints
+- Multiple checkpoints with previous / next navigation
+- Editable checkpoint timestamps
+- Skin-editable checkpoint HUD
+- Configurable checkpoint preroll
+- Fast quick-retry
+- Combo reconstruction for combo-dependent mods such as Flashlight and Bloom
+- Time Control mod with replay-style seeking
+- Object-by-object stepping for checkpoint placement
+
+This project is an unofficial fork and is not affiliated with or supported by ppy.
+
 <p align="center">
   <img width="500" alt="osu! logo" src="assets/lazer.png">
 </p>
