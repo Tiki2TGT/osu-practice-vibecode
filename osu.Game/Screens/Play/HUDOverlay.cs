@@ -5,6 +5,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using JetBrains.Annotations;
 using osu.Framework.Allocation;
 using osu.Framework.Bindables;
@@ -175,12 +176,27 @@ namespace osu.Game.Screens.Play
                 },
             };
 
+            mainComponents.OnComponentsLoaded += _ => ensurePracticeCheckpointDisplay();
+
             hideTargets = new List<Drawable> { mainComponents, TopRightElements };
 
             if (rulesetComponents != null)
                 hideTargets.Add(rulesetComponents);
 
             hideTargets.Add(TopLeftElements);
+        }
+        private void ensurePracticeCheckpointDisplay()
+        {
+            if (mainComponents.Components.OfType<PracticeCheckpointDisplay>().Any())
+                return;
+
+            mainComponents.Add(new PracticeCheckpointDisplay
+            {
+                Anchor = Anchor.TopLeft,
+                Origin = Anchor.TopLeft,
+                Position = new Vector2(20, 110),
+                UsesFixedAnchor = true,
+            });
         }
 
         [BackgroundDependencyLoader(true)]

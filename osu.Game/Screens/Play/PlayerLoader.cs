@@ -651,6 +651,7 @@ namespace osu.Game.Screens.Play
             {
                 Logger.Error(e, "PRACTICE: Failed to save checkpoints");
             }
+            updatePracticeCheckpointHudState();
         }
 
         private double? addPracticeCheckpoint(double time)
@@ -700,6 +701,56 @@ namespace osu.Game.Screens.Play
             );
 
             return practiceCheckpointTime;
+        }
+
+        private void editPracticeCheckpointTimestamp(int index, double time)
+        {
+            if (index < 0 ||
+                index >= practiceCheckpointState.Checkpoints.Count)
+                return;
+
+            time = Math.Max(0, time);
+
+            int oldActiveIndex = practiceCheckpointState.ActiveIndex;
+
+            practiceCheckpointState.Checkpoints.RemoveAt(index);
+
+            int newIndex = getPracticeCheckpointInsertIndex(time);
+
+            practiceCheckpointState.Checkpoints.Insert(newIndex, time);
+
+            if (oldActiveIndex == index)
+            {
+                // The edited checkpoint itself was active.
+                // Follow it to its new sorted position.
+                practiceCheckpointState.ActiveIndex = newIndex;
+            }
+            else if (oldActiveIndex >= 0)
+            {
+                // Preserve whichever OTHER checkpoint was active.
+                int adjustedActiveIndex = oldActiveIndex;
+
+                if (oldActiveIndex > index)
+                    adjustedActiveIndex--;
+
+                if (newIndex <= adjustedActiveIndex)
+                    adjustedActiveIndex++;
+
+                practiceCheckpointState.ActiveIndex = adjustedActiveIndex;
+            }
+
+            practiceCheckpointTime =
+                practiceCheckpointState.ActiveIndex >= 0
+                    ? practiceCheckpointState.Checkpoints[
+                        practiceCheckpointState.ActiveIndex
+                    ]
+                    : null;
+
+            savePracticeCheckpointState();
+
+            Logger.Log(
+                $"PRACTICE: Edited checkpoint timestamp to {time:F0} ms; now at index {newIndex}"
+            );
         }
 
         private double? deletePracticeCheckpoint()
@@ -793,6 +844,14 @@ namespace osu.Game.Screens.Play
 
             return practiceCheckpointTime;
         }
+
+        private void updatePracticeCheckpointHudState()
+        {
+            CurrentPlayer?.UpdatePracticeCheckpointHudState(
+                practiceCheckpointState.Checkpoints,
+                practiceCheckpointState.ActiveIndex
+            );
+        }
         private void prepareNewPlayer()
         {
             if (!this.IsCurrentScreen())
@@ -814,6 +873,12 @@ namespace osu.Game.Screens.Play
             CurrentPlayer.DeletePracticeCheckpointRequest = deletePracticeCheckpoint;
             CurrentPlayer.PreviousPracticeCheckpointRequest = previousPracticeCheckpoint;
             CurrentPlayer.NextPracticeCheckpointRequest = nextPracticeCheckpoint;
+
+            CurrentPlayer.SetPracticeCheckpointTimestampEditor(
+                editPracticeCheckpointTimestamp
+            );
+
+            updatePracticeCheckpointHudState();
 
             CurrentPlayer.PrepareLoaderForRestart = prepareForRestart;
 

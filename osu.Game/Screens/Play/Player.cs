@@ -5,6 +5,7 @@
 
 using System;
 using System.Diagnostics;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -35,6 +36,7 @@ using osu.Game.Rulesets.UI.Scrolling;
 using osu.Game.Scoring;
 using osu.Game.Scoring.Legacy;
 using osu.Game.Screens.Ranking;
+using osu.Game.Screens.Play.HUD;
 using osu.Game.Skinning;
 using osu.Game.Users;
 using osu.Game.Utils;
@@ -102,6 +104,8 @@ namespace osu.Game.Screens.Play
         public Action<bool> PrepareLoaderForRestart;
         public double? PracticeCheckpointTime;
 
+        private int practiceStartingCombo;
+
         // Sticky for the lifetime of this Player.
         // Prevents a filtered practice run from becoming submittable if the
         // final checkpoint is deleted during gameplay.
@@ -112,6 +116,16 @@ namespace osu.Game.Screens.Play
         public Func<double?> DeletePracticeCheckpointRequest;
         public Func<double?> PreviousPracticeCheckpointRequest;
         public Func<double?> NextPracticeCheckpointRequest;
+
+        public void UpdatePracticeCheckpointHudState(IReadOnlyList<double> checkpoints, int activeIndex)
+        {
+            practiceCheckpointHudState.SetState(checkpoints, activeIndex);
+        }
+
+        public void SetPracticeCheckpointTimestampEditor(Action<int, double> editor)
+        {
+            practiceCheckpointHudState.EditTimestampRequested = editor;
+        }
         private bool isRestarting;
         private bool skipExitTransition;
 
@@ -139,6 +153,9 @@ namespace osu.Game.Screens.Play
         // without the loading screen (one such usage is the skin editor's scene library).
         [Cached]
         private OverlayColourProvider colourProvider = new OverlayColourProvider(OverlayColourScheme.Purple);
+
+        [Cached]
+        private readonly PracticeCheckpointHudState practiceCheckpointHudState = new PracticeCheckpointHudState();
 
         [Resolved]
         private ScoreManager scoreManager { get; set; }
@@ -280,8 +297,20 @@ namespace osu.Game.Screens.Play
                 dependencies.CacheAs(scrollingRuleset.ScrollingInfo);
 
             ScoreProcessor = ruleset.CreateScoreProcessor();
+
             ScoreProcessor.Mods.Value = gameplayMods;
+
             ScoreProcessor.ApplyBeatmap(playableBeatmap);
+
+            if (PracticeCheckpointTime.HasValue && practiceStartingCombo > 0)
+            {
+                ScoreProcessor.Combo.Value = practiceStartingCombo;
+                ScoreProcessor.HighestCombo.Value = practiceStartingCombo;
+
+                Logger.Log(
+                    $"PRACTICE: Seeded score processor with {practiceStartingCombo} combo"
+                );
+            }
 
             dependencies.CacheAs(ScoreProcessor);
 
@@ -692,10 +721,38 @@ namespace osu.Game.Screens.Play
 
                 // TEMP PRACTICE TEST:
                 // On retries, remove every object before 30 seconds.
+                practiceStartingCombo = 0;
+
                 if (PracticeCheckpointTime.HasValue &&
                     playable.HitObjects is System.Collections.IList hitObjects)
                 {
                     double checkpoint = PracticeCheckpointTime.Value;
+
+                    // Calculate the combo which would have been achieved by perfectly
+                    // playing every object that practice mode is about to remove.
+                    var prefixObjects = playable.HitObjects
+                                                .Where(o => o.StartTime < checkpoint)
+                                                .ToList();
+
+                    if (prefixObjects.Count > 0)
+                    {
+                        var prefixBeatmap = new Beatmap
+                        {
+                            BeatmapInfo = playable.BeatmapInfo,
+                            HitObjects = prefixObjects,
+                        };
+
+                        ScoreProcessor prefixScoreProcessor = ruleset.CreateScoreProcessor();
+
+                        prefixScoreProcessor.Mods.Value = gameplayMods;
+                        prefixScoreProcessor.ApplyBeatmap(prefixBeatmap);
+
+                        practiceStartingCombo = prefixScoreProcessor.MaximumCombo;
+
+                        Logger.Log(
+                            $"PRACTICE: Starting combo calculated as {practiceStartingCombo}"
+                        );
+                    }
 
                     for (int i = playable.HitObjects.Count - 1; i >= 0; i--)
                     {
