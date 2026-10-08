@@ -98,7 +98,8 @@ namespace osu.Game.Screens.Play
         protected virtual bool PauseOnFocusLost => true;
 
         public Action<bool> PrepareLoaderForRestart;
-
+        public double? PracticeCheckpointTime;
+        public Action<double> PracticeCheckpointChanged;
         private bool isRestarting;
         private bool skipExitTransition;
 
@@ -208,7 +209,7 @@ namespace osu.Game.Screens.Play
                 return;
 
             // Practice retry: start much closer to the first remaining object.
-            if (RestartCount > 0)
+            if (PracticeCheckpointTime.HasValue)
             {
                 double firstObjectTime = DrawableRuleset.Objects.First().StartTime;
                 SetGameplayStartTime(Math.Max(0, firstObjectTime - 500));
@@ -352,9 +353,24 @@ namespace osu.Game.Screens.Play
                 GameplayClockContainer.Add(retryOverlay = new HotkeyRetryOverlay
                 {
                     Depth = float.MinValue,
+
+                    SetPracticeCheckpoint = () =>
+                    {
+                        if (!this.IsCurrentScreen())
+                            return;
+
+                        double time = Math.Max(0, GameplayClockContainer.CurrentTime);
+
+                        PracticeCheckpointTime = time;
+                        PracticeCheckpointChanged?.Invoke(time);
+
+                        Logger.Log($"PRACTICE: Checkpoint set to {time:F0} ms");
+                    },
+
                     Action = () =>
                     {
-                        if (!this.IsCurrentScreen()) return;
+                        if (!this.IsCurrentScreen())
+                            return;
 
                         Restart(true);
                     },
@@ -622,17 +638,19 @@ namespace osu.Game.Screens.Play
 
                 // TEMP PRACTICE TEST:
                 // On retries, remove every object before 30 seconds.
-                if (RestartCount > 0 &&
+                if (PracticeCheckpointTime.HasValue &&
                     playable.HitObjects is System.Collections.IList hitObjects)
                 {
+                    double checkpoint = PracticeCheckpointTime.Value;
+
                     for (int i = playable.HitObjects.Count - 1; i >= 0; i--)
                     {
-                        if (playable.HitObjects[i].StartTime < 30000)
+                        if (playable.HitObjects[i].StartTime < checkpoint)
                             hitObjects.RemoveAt(i);
                     }
 
                     Logger.Log(
-                        $"PRACTICE: {playable.HitObjects.Count} objects remain after 30s checkpoint"
+                        $"PRACTICE: {playable.HitObjects.Count} objects remain after checkpoint {checkpoint:F0} ms"
                     );
                 }
 

@@ -211,7 +211,8 @@ namespace osu.Game.Input.Bindings
             new KeyBinding(InputKey.Control, GlobalAction.HoldForHUD),
             new KeyBinding(InputKey.Enter, GlobalAction.ToggleChatFocus),
             new KeyBinding(InputKey.F1, GlobalAction.SaveReplay),
-            new KeyBinding(InputKey.F2, GlobalAction.ExportReplay),
+            new KeyBinding(InputKey.F2, GlobalAction.SetPracticeCheckpoint),
+            new KeyBinding(new[] { InputKey.Shift, InputKey.F2 }, GlobalAction.ExportReplay),
             new KeyBinding(InputKey.Plus, GlobalAction.IncreaseOffset),
             new KeyBinding(InputKey.Minus, GlobalAction.DecreaseOffset),
         };
@@ -635,6 +636,9 @@ namespace osu.Game.Input.Bindings
 
         [LocalisableDescription(typeof(GlobalActionKeyBindingStrings), nameof(GlobalActionKeyBindingStrings.TakeAndUploadScreenshot))]
         TakeAndUploadScreeshot,
+
+        [LocalisableDescription(typeof(GlobalActionKeyBindingStrings), nameof(GlobalActionKeyBindingStrings.SetPracticeCheckpoint))]
+        SetPracticeCheckpoint,
     }
 
     public enum GlobalActionCategory

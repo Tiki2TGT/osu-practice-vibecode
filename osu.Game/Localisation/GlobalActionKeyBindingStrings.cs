@@ -1,4 +1,4 @@
-// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
+    // Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
 using osu.Framework.Localisation;
@@ -63,6 +63,11 @@ namespace osu.Game.Localisation
         /// "Quick retry (hold)"
         /// </summary>
         public static LocalisableString QuickRetry => new TranslatableString(getKey(@"quick_retry"), @"Quick retry (hold)");
+
+        /// <summary>
+        /// "Set practice checkpoint"
+        /// </summary>
+        public static LocalisableString SetPracticeCheckpoint => new TranslatableString(getKey(@"set_practice_checkpoint"), @"Set practice checkpoint");
 
         /// <summary>
         /// "Take screenshot"

@@ -559,6 +559,15 @@ namespace osu.Game.Screens.Play
             CurrentPlayer = createPlayer();
             CurrentPlayer.Configuration.AutomaticallySkipIntro |= QuickRestart;
             CurrentPlayer.RestartCount = restartCount++;
+
+            CurrentPlayer.PracticeCheckpointTime = practiceCheckpointTime;
+
+            CurrentPlayer.PracticeCheckpointChanged = time =>
+            {
+                practiceCheckpointTime = time;
+                Logger.Log($"PRACTICE: Loader saved checkpoint at {time:F0} ms");
+            };
+
             CurrentPlayer.PrepareLoaderForRestart = prepareForRestart;
 
             LoadTask = LoadComponentAsync(CurrentPlayer, _ =>
@@ -779,7 +788,7 @@ namespace osu.Game.Screens.Play
         private Bindable<bool> muteWarningShownOnce = null!;
 
         private int restartCount;
-
+        private double? practiceCheckpointTime;
         private const double volume_requirement = 0.01;
 
         private void showMuteWarningIfNeeded()
